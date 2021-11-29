@@ -1,4 +1,4 @@
-from utils import *
+from .utils import *
 import torch.nn.functional as F
 
 class Graph_Linear(nn.Module):
@@ -103,7 +103,7 @@ class Graph_GRUModel(nn.Module):
 
 class Graph_Attention(nn.Module):
 
-    def __init__(self, in_features, out_features, dropout, alpha ,concat=True, residual=False):
+    def __init__(self, in_features, out_features, num_stock, dropout, alpha ,concat=True, residual=False):
         super(Graph_Attention, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
@@ -121,7 +121,7 @@ class Graph_Attention(nn.Module):
         self.f_1 = nn.Conv1d(out_features, 1, kernel_size=1, stride=1)
         self.f_2 = nn.Conv1d(out_features, 1, kernel_size=1, stride=1)
 
-        self.W_static = nn.Parameter(torch.zeros(198,198).type(torch.FloatTensor), requires_grad=True)
+        self.W_static = nn.Parameter(torch.zeros(num_stock, num_stock).type(torch.FloatTensor), requires_grad=True)
 
         self.w_1 = nn.Conv1d(in_features, out_features, kernel_size=1, stride=1)
         self.w_2 = nn.Conv1d(in_features, out_features, kernel_size=1, stride=1)
@@ -141,7 +141,8 @@ class Graph_Attention(nn.Module):
             logits += torch.mul(relation_static, self.W_static)
         coefs = F.elu(logits)
         if not isinstance(self.coef_revise,torch.Tensor):
-            self.coef_revise = torch.zeros(198, 198, device = input_r.device) + 1.0 - torch.eye(198, 198,device = input_r.device)
+            num_stock = relation_static.shape[0]
+            self.coef_revise = torch.zeros(num_stock, num_stock, device = input_r.device) + 1.0 - torch.eye(num_stock, num_stock, device = input_r.device)
         coefs_eye = coefs.mul(self.coef_revise)
         return coefs_eye
 

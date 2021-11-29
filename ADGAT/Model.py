@@ -1,4 +1,4 @@
-from Layers import *
+from .Layers import *
 
 class AD_GAT(nn.Module):
     def __init__(self, num_stock, d_market, d_news, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1, infer = 1, relation_static = 0):
@@ -13,7 +13,7 @@ class AD_GAT(nn.Module):
              self.GRUs_s = Graph_GRUModel(num_stock, d_hidden, hidn_rnn)
              self.GRUs_r = Graph_GRUModel(num_stock, d_hidden, hidn_rnn)
         self.attentions = [
-            Graph_Attention(hidn_rnn, hidn_att, dropout=dropout, alpha=alpha, residual=True, concat=True) for _
+            Graph_Attention(hidn_rnn, hidn_att, num_stock=num_stock, dropout=dropout, alpha=alpha, residual=True, concat=True) for _
             in range(heads_att)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
