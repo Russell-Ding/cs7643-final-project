@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 
 # args:
-device = 0
+device = "0"
 max_epoch = 300
 wait_epoch_threshold = 30
 save = True
