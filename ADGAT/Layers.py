@@ -156,7 +156,7 @@ class Graph_Attention(nn.Module):
 
     def forward(self, input_s, input_r, relation_static = None):
         # unmasked attention
-        coefs_eye = self.get_relation(input_r,relation_static)
+        coefs_eye = self.get_relation(input_r, relation_static)
         # attribute-mattered propagation
         seq_s = torch.transpose(input_s, 0, 1).unsqueeze(0)
         seq_fts_s = self.seq_transformation_s(seq_s)

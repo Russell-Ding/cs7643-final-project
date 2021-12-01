@@ -1,7 +1,7 @@
 from .Layers import *
 
 class AD_GAT(nn.Module):
-    def __init__(self, num_stock, d_market, d_news, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1, infer = 1, relation_static = 0):
+    def __init__(self, num_stock, d_market, d_news, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1):
         super(AD_GAT, self).__init__()
         self.t_mix = t_mix
         self.dropout = dropout
@@ -36,14 +36,14 @@ class AD_GAT(nn.Module):
         gate = torch.stack([att.get_gate(x_s) for att in self.attentions])
         return gate
 
-    def forward(self, x_market, x_news, relation_static = None):
+    def forward(self, x_market, x_alter, relation_static = None):
         ## concat vs tensor
         if self.t_mix == 0:  # concat
-            x_s = torch.cat([x_market, x_news], dim=-1)
-            x_r = torch.cat([x_market, x_news], dim=-1)
+            x_s = torch.cat([x_market, x_alter], dim=-1)
+            x_r = torch.cat([x_market, x_alter], dim=-1)
         elif self.t_mix == 1:  # concat
-            x_s = self.tensor(x_market, x_news)
-            x_r = self.tensor(x_market, x_news)
+            x_s = self.tensor(x_market, x_alter)
+            x_r = self.tensor(x_market, x_alter)
         #GRUs for extract different sequential embedding for relation/gate inferring.
         #Equivalent to use a single GRU and separate non-linear decoders.
         x_r = self.GRUs_r(x_r)
