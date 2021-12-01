@@ -1,15 +1,15 @@
 from .Layers import *
 
 class AD_GAT(nn.Module):
-    def __init__(self, num_stock, d_market, d_news, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1):
+    def __init__(self, num_stock, d_market, d_alter, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1):
         super(AD_GAT, self).__init__()
         self.t_mix = t_mix
         self.dropout = dropout
         if  self.t_mix == 0: # concat
-            self.GRUs_s = Graph_GRUModel(num_stock, d_market + d_news, hidn_rnn)
-            self.GRUs_r = Graph_GRUModel(num_stock, d_market + d_news, hidn_rnn)
+            self.GRUs_s = Graph_GRUModel(num_stock, d_market + d_alter, hidn_rnn)
+            self.GRUs_r = Graph_GRUModel(num_stock, d_market + d_alter, hidn_rnn)
         elif self.t_mix == 1: # all_tensor
-             self.tensor = Graph_Tensor(num_stock,d_hidden,d_market,d_news)
+             self.tensor = Graph_Tensor(num_stock,d_hidden,d_market,d_alter)
              self.GRUs_s = Graph_GRUModel(num_stock, d_hidden, hidn_rnn)
              self.GRUs_r = Graph_GRUModel(num_stock, d_hidden, hidn_rnn)
         self.attentions = [

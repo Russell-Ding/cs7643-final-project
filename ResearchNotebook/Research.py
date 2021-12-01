@@ -14,18 +14,9 @@ from tqdm import tqdm
 device = 0
 max_epoch = 300
 wait_epoch_threshold = 30
-lr = 5e-4
-heads_att = 3
-hidn_att = 30
-hidn_rnn = 100
-weight_constraint = 0  # L2 weight constraint
-rnn_length = 10
-dropout = 0.2
-clip = 0.25
-relation = 'supply'
 save = True
-# DEVICE = "cuda:" + device
-DEVICE = "cpu"
+DEVICE = "cuda:" + device
+# DEVICE = "cpu"
 
 criterion = torch.nn.NLLLoss()
 
@@ -58,7 +49,7 @@ def load_dataset(DEVICE, relation):
     return x_market, y, x_alternative, relation_static
 
 
-def train(model, x_train, x_alt_train, y_train, relation_static=None, optimizer=None):
+def train(model, x_train, x_alt_train, y_train, relation_static=None, optimizer=None, rnn_length=None, clip=None):
     model.train()
     seq_len = len(x_train)
     train_seq = list(range(seq_len))[rnn_length:]
@@ -83,7 +74,7 @@ def train(model, x_train, x_alt_train, y_train, relation_static=None, optimizer=
     return total_loss / total_loss_count
 
 
-def evaluate(model, x_eval, x_alt_eval, y_eval, relation_static=None):
+def evaluate(model, x_eval, x_alt_eval, y_eval, relation_static=None, rnn_length=None):
     model.eval()
     seq_len = len(x_eval)
     seq = list(range(seq_len))[rnn_length:]
@@ -99,11 +90,12 @@ def evaluate(model, x_eval, x_alt_eval, y_eval, relation_static=None):
     return acc, auc
 
 
-def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length,
+def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_constraint, dropout, clip,
              model_name="AD_GAT", relation="None", random_seed=2021):
-    task_name = model_name + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    task_name = model_name + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     set_seed(random_seed)
-
+    record = dict(max_epoch=max_epoch, hidn_rnn=hidn_rnn, heads_att=heads_att, hidn_att=hidn_att, lr=lr, rnn_length=rnn_length, weight_constraint=weight_constraint, dropout=dropout, clip=clip,
+                model_name=model_name, relation=relation, random_seed=random_seed)
     if relation != "None":
         static = 1
         pass
@@ -145,7 +137,7 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length,
     eval_epoch_best = 0
 
     if model_name == "AD_GAT":
-        model = AD_GAT(num_stock=NUM_STOCK, d_market=D_MARKET, D_ALTER=D_ALTER,
+        model = AD_GAT(num_stock=NUM_STOCK, d_market=D_MARKET, d_alter=D_ALTER,
                        d_hidden=D_MARKET, hidn_rnn=hidn_rnn, heads_att=heads_att,
                        hidn_att=hidn_att, dropout=dropout, t_mix=t_mix)
     elif model_name == "LSTM":
@@ -161,18 +153,27 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length,
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_constraint)
 
     # train
+    save_file_name = f"../SavedModels/{task_name}/"
+    abs_path = os.path.abspath(save_file_name)
+    if not os.path.exists(abs_path):
+        os.mkdir(abs_path)
+
     while epoch < MAX_EPOCH:
-        train_loss = train(model, x_train, x_alternative_train, y_train, relation_static=relation_static, optimizer=optimizer)
-        eval_acc, eval_auc = evaluate(model, x_eval, x_alternative_eval, y_eval, relation_static=relation_static)
-        test_acc, test_auc = evaluate(model, x_test, x_alternative_test, y_test, relation_static=relation_static)
+        train_loss = train(model, x_train, x_alternative_train, y_train, relation_static=relation_static, optimizer=optimizer, rnn_length=rnn_length, clip=clip)
+        eval_acc, eval_auc = evaluate(model, x_eval, x_alternative_eval, y_eval, relation_static=relation_static, rnn_length=rnn_length)
+        test_acc, test_auc = evaluate(model, x_test, x_alternative_test, y_test, relation_static=relation_static, rnn_length=rnn_length)
         eval_str = "epoch{}, train_loss{:.4f}, eval_auc{:.4f}, eval_acc{:.4f}, test_auc{:.4f},test_acc{:.4f}".format(epoch,
                                                                                                                      train_loss,
                                                                                                                      eval_auc,
                                                                                                                      eval_acc,
                                                                                                                      test_auc,
                                                                                                                      test_acc)
+        record.update(dict(epoch=epoch, eval_auc=eval_auc, eval_da=eval_acc, test_auc=test_auc, test_da=test_acc))
         print(eval_str)
-        save_file_name = f"./SaveModels/{task_name}/"
+
+        with open(fr"../Records/{task_name}.txt", "a") as f:
+            f.write(str(record))
+            f.write("\n")
 
         if eval_auc > eval_epoch_best:
             eval_epoch_best = eval_auc
@@ -183,12 +184,17 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length,
                 if best_model_file:
                     os.remove(best_model_file)
 
-                best_model_file = save_file_name + "_epoch{}_eval:auc{:.4f}_da{:.4f}_test:auc{:.4f}_da{:.4f}".format(epoch, eval_auc, eval_acc, test_auc, test_acc)
+                best_model_file = save_file_name + "epoch{}_eval:auc{:.4f}_da{:.4f}_test:auc{:.4f}_da{:.4f}".format(epoch, eval_auc, eval_acc, test_auc, test_acc)
+
                 torch.save(model.state_dict(), best_model_file)
         else:
             wait_epoch += 1
 
-        if wait_epoch > 50:
+        if wait_epoch > wait_epoch_threshold:
             print("saved_model_result:", eval_best_str)
             break
         epoch += 1
+
+if __name__ == "__main__":
+    research(max_epoch=10, hidn_rnn=10, heads_att=2, hidn_att=10, lr=0.0001, rnn_length=5, weight_constraint=0, dropout=0.2, clip=0.25,
+             model_name="AD_GAT", relation="supply", random_seed=2021)
