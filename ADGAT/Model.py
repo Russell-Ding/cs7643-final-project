@@ -54,6 +54,5 @@ class AD_GAT(nn.Module):
         x = torch.cat([att(x_s, x_r, relation_static = relation_static) for att in self.attentions], dim=1)
         x = F.dropout(x, self.dropout, training=self.training)
         x = torch.cat([x, x_s], dim=1)
-        x = F.elu(self.X2Os(x))
-        output = F.log_softmax(x, dim=1)
+        output = F.elu(self.X2Os(x))
         return output

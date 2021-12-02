@@ -18,7 +18,7 @@ save = True
 DEVICE = "cuda:" + device
 # DEVICE = "cpu"
 
-criterion = torch.nn.NLLLoss()
+criterion = torch.nn.CrossEntropyLoss()
 
 
 def load_dataset(DEVICE, relation):
@@ -94,8 +94,10 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
              model_name="AD_GAT", relation="None", random_seed=2021):
     task_name = model_name + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     set_seed(random_seed)
-    record = dict(max_epoch=max_epoch, hidn_rnn=hidn_rnn, heads_att=heads_att, hidn_att=hidn_att, lr=lr, rnn_length=rnn_length, weight_constraint=weight_constraint, dropout=dropout, clip=clip,
-                model_name=model_name, relation=relation, random_seed=random_seed)
+    record = dict(max_epoch=max_epoch, hidn_rnn=hidn_rnn, heads_att=heads_att,
+                  hidn_att=hidn_att, lr=lr, rnn_length=rnn_length, weight_constraint=weight_constraint,
+                  dropout=dropout, clip=clip,
+                  model_name=model_name, relation=relation, random_seed=random_seed)
     if relation != "None":
         static = 1
         pass
@@ -185,7 +187,6 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
                     os.remove(best_model_file)
 
                 best_model_file = save_file_name + "epoch{}_eval:auc{:.4f}_da{:.4f}_test:auc{:.4f}_da{:.4f}".format(epoch, eval_auc, eval_acc, test_auc, test_acc)
-
                 torch.save(model.state_dict(), best_model_file)
         else:
             wait_epoch += 1
@@ -196,5 +197,7 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
         epoch += 1
 
 if __name__ == "__main__":
-    research(max_epoch=10, hidn_rnn=10, heads_att=2, hidn_att=10, lr=0.0001, rnn_length=5, weight_constraint=0, dropout=0.2, clip=0.25,
+    research(max_epoch=100, hidn_rnn=128, heads_att=4, hidn_att=40, lr=5e-4, rnn_length=20, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
              model_name="AD_GAT", relation="supply", random_seed=2021)
+    # research(max_epoch=100, hidn_rnn=10, heads_att=4, hidn_att=10, lr=5e-4, rnn_length=10, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
+    #          model_name="AD_GAT", relation="supply", random_seed=2021)
