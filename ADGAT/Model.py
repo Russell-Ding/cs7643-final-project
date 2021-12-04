@@ -17,7 +17,7 @@ class AD_GAT(nn.Module):
             in range(heads_att)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
-        self.X2Os = Graph_Linear(num_stock, heads_att * hidn_att  + hidn_rnn , 2, bias = True)
+        self.X2Os = Graph_Linear(num_stock, heads_att * hidn_att  + hidn_rnn , 1, bias = True)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -54,5 +54,6 @@ class AD_GAT(nn.Module):
         x = torch.cat([att(x_s, x_r, relation_static = relation_static) for att in self.attentions], dim=1)
         x = F.dropout(x, self.dropout, training=self.training)
         x = torch.cat([x, x_s], dim=1)
-        output = F.elu(self.X2Os(x))
+        x = self.X2Os(x)
+        output = torch.sigmoid(x).squeeze(-1)
         return output

@@ -3,6 +3,7 @@ import sys
 
 sys.path.append("..")
 from ADGAT.Model import *
+from Baseline.Model import LSTM
 from ADGAT.utils import *
 import pickle
 import torch
@@ -15,10 +16,10 @@ device = "0"
 max_epoch = 300
 wait_epoch_threshold = 30
 save = True
-DEVICE = "cuda:" + device
-# DEVICE = "cpu"
+# DEVICE = "cuda:" + device
+DEVICE = "cpu"
 
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.BCELoss()
 
 
 def load_dataset(DEVICE, relation):
@@ -44,7 +45,7 @@ def load_dataset(DEVICE, relation):
     else:
         relation_static = None
     y = torch.tensor(y_load, device=DEVICE)
-    y = (y > 0).to(torch.long)
+    y = (y.T > y.median(dim=1)[0]).T.to(torch.long)
 
     return x_market, y, x_alternative, relation_static
 
@@ -60,7 +61,7 @@ def train(model, x_train, x_alt_train, y_train, relation_static=None, optimizer=
     for i in tqdm(train_seq):
         output = model(x_train[i - rnn_length + 1: i + 1], x_alt_train[i - rnn_length + 1: i + 1],
                        relation_static=relation_static)
-        loss = criterion(output, y_train[i])
+        loss = criterion(output, y_train[i].double())
         loss.backward()
         total_loss += loss.item()
         total_loss_count += 1
@@ -84,7 +85,7 @@ def evaluate(model, x_eval, x_alt_eval, y_eval, relation_static=None, rnn_length
         output = model(x_eval[i - rnn_length + 1: i + 1], x_alt_eval[i - rnn_length + 1: i + 1],
                        relation_static=relation_static)
         output = output.detach().cpu()
-        preds.append(np.exp(output.numpy()))
+        preds.append(output.numpy())
         trues.append(y_eval[i].cpu().numpy())
     acc, auc = metrics(trues, preds)
     return acc, auc
@@ -143,7 +144,9 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
                        d_hidden=D_MARKET, hidn_rnn=hidn_rnn, heads_att=heads_att,
                        hidn_att=hidn_att, dropout=dropout, t_mix=t_mix)
     elif model_name == "LSTM":
-        pass
+        model = LSTM(num_stock=NUM_STOCK, d_market=D_MARKET, d_alter=D_ALTER,
+                       d_hidden=D_MARKET, hidn_rnn=hidn_rnn, heads_att=heads_att,
+                       hidn_att=hidn_att, dropout=dropout, t_mix=t_mix)
     elif model_name == "DeepQuant":
         pass
     else:
@@ -197,7 +200,7 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
         epoch += 1
 
 if __name__ == "__main__":
-    research(max_epoch=100, hidn_rnn=128, heads_att=4, hidn_att=40, lr=5e-4, rnn_length=20, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
-             model_name="AD_GAT", relation="supply", random_seed=2021)
-    # research(max_epoch=100, hidn_rnn=10, heads_att=4, hidn_att=10, lr=5e-4, rnn_length=10, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
+    # research(max_epoch=100, hidn_rnn=128, heads_att=4, hidn_att=40, lr=5e-4, rnn_length=20, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
     #          model_name="AD_GAT", relation="supply", random_seed=2021)
+    research(max_epoch=100, hidn_rnn=10, heads_att=3, hidn_att=10, lr=5e-4, rnn_length=5, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
+             model_name="LSTM", relation="supply", random_seed=2021)

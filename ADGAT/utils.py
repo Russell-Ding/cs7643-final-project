@@ -3,7 +3,7 @@ import math
 import random
 import torch
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 import os
 
 
@@ -25,10 +25,10 @@ def set_seed(seed):
 
 
 def metrics(trues, preds):
-    trues = np.concatenate(trues,-1)
-    preds = np.concatenate(preds,0)
-    acc = sum(preds.argmax(-1) == trues) / len(trues)
-    auc = roc_auc_score(trues,preds[:,1])
+    trues = np.concatenate(trues, -1)
+    preds = np.concatenate(preds, 0)
+    acc = accuracy_score(trues, preds >= 0.5)
+    auc = roc_auc_score(trues, preds)
     return acc, auc
 
 def createPath(path):
