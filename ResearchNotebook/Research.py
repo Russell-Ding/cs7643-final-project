@@ -202,5 +202,5 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
 if __name__ == "__main__":
     # research(max_epoch=100, hidn_rnn=128, heads_att=4, hidn_att=40, lr=5e-4, rnn_length=20, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
     #          model_name="AD_GAT", relation="supply", random_seed=2021)
-    research(max_epoch=100, hidn_rnn=10, heads_att=3, hidn_att=10, lr=5e-4, rnn_length=5, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
+    research(max_epoch=100, hidn_rnn=10, heads_att=3, hidn_att=6, lr=5e-4, rnn_length=7, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
              model_name="LSTM", relation="supply", random_seed=2021)
