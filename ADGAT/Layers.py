@@ -19,13 +19,13 @@ class Graph_Linear(nn.Module):
 
 
 class Graph_Tensor(nn.Module):
-    def __init__(self, num_stock, d_hidden, d_market, d_news, bias=True):
+    def __init__(self, num_stock, d_hidden, d_market, d_alternative, bias=True):
         super(Graph_Tensor, self).__init__()
         self.num_stock = num_stock
         self.d_hidden = d_hidden
         self.d_market = d_market
-        self.d_news = d_news
-        self.seq_transformation_news = nn.Conv1d(d_news, d_hidden, kernel_size=1, stride=1, bias=False)
+        self.d_alternative = d_alternative
+        self.seq_transformation_alternative = nn.Conv1d(d_alternative, d_hidden, kernel_size=1, stride=1, bias=False)
         self.seq_transformation_markets = nn.Conv1d(d_market, d_hidden, kernel_size=1, stride=1, bias=False)
         self.tensorGraph = nn.Parameter(torch.zeros(num_stock, d_hidden, d_hidden, d_hidden))
         self.W = nn.Parameter(torch.zeros(num_stock, 2 * d_hidden, d_hidden))
@@ -33,14 +33,14 @@ class Graph_Tensor(nn.Module):
         self.reset_parameters()
     def reset_parameters(self):
         reset_parameters(self.named_parameters)
-    def forward(self, market, news):
-        t, num_stocks = news.size()[0], news.size()[1]
+    def forward(self, market, alternative):
+        t, num_stocks = alternative.size()[0], alternative.size()[1]
 
-        news_transformed = news.reshape(-1, self.d_news)
-        news_transformed = torch.transpose(news_transformed, 0, 1).unsqueeze(0)
-        news_transformed = self.seq_transformation_news(news_transformed)
-        news_transformed = news_transformed.squeeze().transpose(0, 1)
-        news_transformed = news_transformed.reshape(t, num_stocks, self.d_hidden)
+        alternative_transformed = alternative.reshape(-1, self.d_alternative)
+        alternative_transformed = torch.transpose(alternative_transformed, 0, 1).unsqueeze(0)
+        alternative_transformed = self.seq_transformation_alternative(alternative_transformed)
+        alternative_transformed = alternative_transformed.squeeze().transpose(0, 1)
+        alternative_transformed = alternative_transformed.reshape(t, num_stocks, self.d_hidden)
 
         market_transformed = market.reshape(-1, self.d_market)
         market_transformed = torch.transpose(market_transformed, 0, 1).unsqueeze(0)
@@ -48,12 +48,12 @@ class Graph_Tensor(nn.Module):
         market_transformed = market_transformed.squeeze().transpose(0, 1)
         market_transformed = market_transformed.reshape(t, num_stocks, self.d_hidden)
 
-        x_news_tensor = news_transformed.unsqueeze(2)
-        x_news_tensor = x_news_tensor.unsqueeze(2)
+        x_alternative_tensor = alternative_transformed.unsqueeze(2)
+        x_alternative_tensor = x_alternative_tensor.unsqueeze(2)
         x_market_tensor = market_transformed.unsqueeze(-1)
-        temp_tensor = x_news_tensor.matmul(self.tensorGraph).squeeze()
+        temp_tensor = x_alternative_tensor.matmul(self.tensorGraph).squeeze()
         temp_tensor = temp_tensor.matmul(x_market_tensor).squeeze()
-        x_linear = torch.cat((news_transformed, market_transformed), axis=-1)
+        x_linear = torch.cat((alternative_transformed, market_transformed), axis=-1)
         temp_linear = torch.bmm(x_linear.transpose(0, 1), self.W)
         temp_linear = temp_linear.transpose(0, 1)
 
