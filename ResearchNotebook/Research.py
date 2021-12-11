@@ -9,15 +9,15 @@ import pickle
 import torch
 from torch import optim
 from tqdm import tqdm
-
+import gc
 
 # args:
 device = "0"
-max_epoch = 300
-wait_epoch_threshold = 30
+max_epoch = 1000
+wait_epoch_threshold = 1000
 save = True
-# DEVICE = "cuda:" + device
-DEVICE = "cpu"
+DEVICE = "cuda:" + device
+# DEVICE = "cpu"
 
 criterion = torch.nn.BCELoss()
 
@@ -29,6 +29,8 @@ def load_dataset(DEVICE, relation):
         y_load = pickle.load(handle)
     with open("../Data/relations_author_source/x_short_pe_ps_pb.pkl", 'rb') as handle:
         alternatives = pickle.load(handle)
+    # with open("../Data/relations_author_source/y_.pkl", 'rb') as handle:
+    #     alternatives = alternatives.reshape(list(alternatives.shape) + [1])
 
     markets = markets.astype(np.float64)
     x_market = torch.tensor(markets, device=DEVICE)
@@ -93,6 +95,8 @@ def evaluate(model, x_eval, x_alt_eval, y_eval, relation_static=None, rnn_length
 
 def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_constraint, dropout, clip,
              model_name="AD_GAT", relation="None", random_seed=2021):
+    gc.collect()
+    torch.cuda.empty_cache()
     task_name = model_name + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     set_seed(random_seed)
     record = dict(max_epoch=max_epoch, hidn_rnn=hidn_rnn, heads_att=heads_att,
@@ -115,11 +119,11 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
     D_MARKET = x.size(2)
     D_ALTER = x_alternative.size(2)
     MAX_EPOCH = max_epoch
-    t_mix = 1
+    t_mix = 0
 
     # train-test split
-    t_train = int(T * 0.6)
-    t_eval = int(T * 0.2)
+    t_train = int(T * 0.9)
+    t_eval = int(T * 0.1)
 
     x_train = x[: t_train]
     x_eval = x[t_train - rnn_length: t_train + t_eval]
@@ -189,7 +193,7 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
                 if best_model_file:
                     os.remove(best_model_file)
 
-                best_model_file = save_file_name + "epoch{}_eval:auc{:.4f}_da{:.4f}_test:auc{:.4f}_da{:.4f}".format(epoch, eval_auc, eval_acc, test_auc, test_acc)
+                best_model_file = save_file_name + "epoch{}_evalauc{:.4f}_da{:.4f}_testauc{:.4f}_da{:.4f}".format(epoch, eval_auc, eval_acc, test_auc, test_acc)
                 torch.save(model.state_dict(), best_model_file)
         else:
             wait_epoch += 1
@@ -202,5 +206,5 @@ def research(max_epoch, hidn_rnn, heads_att, hidn_att, lr, rnn_length, weight_co
 if __name__ == "__main__":
     # research(max_epoch=100, hidn_rnn=128, heads_att=4, hidn_att=40, lr=5e-4, rnn_length=20, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
     #          model_name="AD_GAT", relation="supply", random_seed=2021)
-    research(max_epoch=100, hidn_rnn=10, heads_att=3, hidn_att=6, lr=5e-4, rnn_length=7, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
-             model_name="LSTM", relation="supply", random_seed=2021)
+    research(max_epoch=100, hidn_rnn=10, heads_att=3, hidn_att=3, lr=5e-4, rnn_length=2, weight_constraint=1e-5, dropout=0.2, clip=0.0001,
+             model_name="LSTM", relation="supply", random_seed=13)
