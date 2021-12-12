@@ -2,17 +2,16 @@ from .utils import *
 import torch.nn.functional as F
 
 class Graph_Linear(nn.Module):
-    def __init__(self,num_nodes, input_size, hidden_size, bias=True):
+    def __init__(self, input_size, hidden_size, bias=True):
         super(Graph_Linear, self).__init__()
         self.bias = bias
-        self.W = nn.Parameter(torch.zeros(num_nodes,input_size,hidden_size))
-        self.b = nn.Parameter(torch.zeros(num_nodes,hidden_size))
+        self.W = nn.Parameter(torch.zeros(input_size,hidden_size))
+        self.b = nn.Parameter(torch.zeros(hidden_size))
         self.reset_parameters()
     def reset_parameters(self):
         reset_parameters(self.named_parameters)
     def forward(self, x):
-        output = torch.bmm(x.unsqueeze(1), self.W)
-        output = output.squeeze(1)
+        output = x @ self.W
         if self.bias:
             output = output + self.b
         return output
@@ -66,8 +65,8 @@ class Graph_GRUCell(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.bias = bias
-        self.x2h = Graph_Linear(num_nodes, input_size, 3 * hidden_size, bias=bias)
-        self.h2h = Graph_Linear(num_nodes, hidden_size, 3 * hidden_size, bias=bias)
+        self.x2h = Graph_Linear(input_size, 3 * hidden_size, bias=bias)
+        self.h2h = Graph_Linear(hidden_size, 3 * hidden_size, bias=bias)
         self.reset_parameters()
     def reset_parameters(self):
         reset_parameters(self.named_parameters)

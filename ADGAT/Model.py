@@ -1,5 +1,6 @@
 from .Layers import *
 
+
 class AD_GAT(nn.Module):
     def __init__(self, num_stock, d_market, d_alter, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1):
         super(AD_GAT, self).__init__()
@@ -17,18 +18,11 @@ class AD_GAT(nn.Module):
             in range(heads_att)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
-        self.X2Os = Graph_Linear(num_stock, heads_att * hidn_att  + hidn_rnn , 1, bias = True)
+        self.X2Os = Graph_Linear(heads_att * hidn_att  + hidn_rnn , 1, bias = True)
         self.reset_parameters()
 
     def reset_parameters(self):
         reset_parameters(self.named_parameters)
-
-    def get_relation(self,x_numerical, x_textual, relation_static = None):
-        x_r = self.tensor(x_numerical, x_textual)
-        x_r = self.GRUs_r(x_r)
-        relation = torch.stack([att.get_relation(x_r, relation_static=relation_static) for att in self.attentions])
-        # relation_mean = torch.mean(abs_relation,dim = 1)
-        return relation
 
     def get_gate(self,x_numerical,x_textual):
         x_s = self.tensor(x_numerical, x_textual)
@@ -56,4 +50,28 @@ class AD_GAT(nn.Module):
         x = torch.cat([x, x_s], dim=1)
         x = self.X2Os(x)
         output = torch.sigmoid(x).squeeze(-1)
+        return output
+
+
+class DeepQuant(nn.Module):
+    def __init__(self, num_stock, d_market, d_alter, d_hidden, hidn_rnn, heads_att, hidn_att, dropout=0, alpha=0.2, t_mix = 1):
+        super(DeepQuant, self).__init__()
+        self.ad_gat = AD_GAT(num_stock, d_market, d_alter, d_hidden, hidn_rnn, heads_att, hidn_att, dropout, alpha, t_mix)
+        self.lstm = nn.LSTM(input_size=d_market + d_alter, hidden_size=hidn_rnn, num_layers=1, batch_first=False, dropout=dropout)
+        self.fc1 = nn.Linear(2 * hidn_rnn, 1)
+        self.fc2 = nn.Linear(2, 1)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x_market, x_alter, relation_static = None):
+        ## concat vs tensor
+        self.ad_gat.zero_grad()
+        self.lstm.zero_grad()
+        graph_output = self.ad_gat(x_market, x_alter, relation_static).unsqueeze(-1)
+        x = torch.cat([x_market, x_alter], dim=-1)
+        output, hidden = self.lstm(x)
+        highway = self.relu(self.fc1(torch.cat(hidden, dim=-1))).squeeze(0)
+        scores = self.fc2(torch.cat([graph_output, highway], dim=-1))
+        output = self.sigmoid(scores).squeeze(-1)
+
         return output
